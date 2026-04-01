@@ -4,19 +4,24 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.1.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: 1.0.6
-  provider: 6.1.1        # Untuk manajemen data/saldo
-  google_fonts: 5.1.0    # Untuk font cantik
+  cupertino_icons: ^1.0.6
+  provider: ^6.1.1
+  google_fonts: ^5.1.0
+  shared_preferences: ^2.2.2 # Pastikan ini ada
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: 3.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
+  
+  # BAGIAN INI WAJIB ADA DAN INDENTASINYA BENAR (2 spasi)
+  assets:
+    - assets/frame_1.png

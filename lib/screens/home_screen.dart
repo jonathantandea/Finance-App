@@ -24,6 +24,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    // Load data dari SharedPreferences saat halaman dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppProvider>().loadData();
+    });
+
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
@@ -40,6 +45,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
 
+    // Tampilkan Loading Screen sementara data diambil
+    if (appProvider.isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -54,28 +67,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     physics: const BouncingScrollPhysics(),
                     child: Column(
                       children: [
-                        // 1. HEADER (Logo + Nama Profil)
+                        // 1. HEADER (RAPI - Tanpa Box Kosong)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // Grup Kiri: Logo + Nama
                               Row(
                                 children: [
-                                  // LOGO APLIKASI DI HEADER
                                   Container(
                                     width: 45,
                                     height: 45,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
-                                      ],
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child: Image.asset('assets/logo.png', fit: BoxFit.cover),
+                                      child: Image.asset('assets/logo.png', fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.account_balance_wallet, color: AppColors.primary)),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -95,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   ),
                                 ],
                               ),
-                              // Ikon Profil Kecil (Navigasi ke Profile Screen)
+                              // Grup Kanan: Ikon Profil
                               GestureDetector(
                                 onTap: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const ProfileScreen())),
                                 child: Container(
@@ -116,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                         ),
 
-                        // 2. BOX ISLAND UTAMA (Saldo) - Lebih Compact
+                        // 2. BOX ISLAND UTAMA (Saldo)
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -158,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                         ),
 
-                        // 3. FLOATING ISLAND (Transaksi Terakhir) - Lebih Compact
+                        // 3. FLOATING ISLAND (Transaksi Terakhir)
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                           padding: const EdgeInsets.all(20),
@@ -213,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ],
                           ),
                         ),
-                        const SizedBox(height: 90), // Space for Bottom Nav
+                        const SizedBox(height: 90),
                       ],
                     ),
                   ),
@@ -222,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
 
-          // 4. BUTTON ISLAND (3 TOMBOL SAJA - NO ADD BUTTON)
+          // 4. BUTTON ISLAND (3 Tombol)
           Positioned(
             left: 20,
             right: 20,
@@ -237,13 +248,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  // Home
                   _buildNavButton(Icons.home_rounded, true, () {}),
-                  // Expenses (Ke halaman list, di sana ada tombol Add)
                   _buildNavButton(Icons.receipt_long_rounded, false, () {
                     Navigator.push(context, CupertinoPageRoute(builder: (_) => const ExpensesListScreen()));
                   }),
-                  // Profile
                   _buildNavButton(Icons.person_outline_rounded, false, () {
                      Navigator.push(context, CupertinoPageRoute(builder: (_) => const ProfileScreen()));
                   }),

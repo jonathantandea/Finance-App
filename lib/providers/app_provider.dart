@@ -1,109 +1,104 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/transaction.dart';
 
 class AppProvider extends ChangeNotifier {
-  // Saldo awal (bisa diubah sesuai kebutuhan)
-  double _balance = 1000000;
+  double _balance = 0;
+  List<Transaction> _transactions = [];
+  bool _isLoading = true;
 
-  // Data transaksi awal (Dummy Data)
-  List<Transaction> _transactions = [
-    Transaction(
-      title: 'Gaji Bulanan',
-      amount: 19000000,
-      isIncome: true,
-      date: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-    Transaction(
-      title: 'Beli Motor',
-      amount: 19000000,
-      isIncome: false,
-      date: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    Transaction(
-      title: 'Makan Siang',
-      amount: 50000,
-      isIncome: false,
-      date: DateTime.now(),
-    ),
-  ];
-
-  // --- GETTERS ---
-  
-  // Mendapatkan saldo saat ini
+  // Getters
   double get balance => _balance;
-
-  // Mendapatkan daftar semua transaksi
   List<Transaction> get transactions => _transactions;
+  bool get isLoading => _isLoading;
 
-  // Menghitung total pemasukan
-  double get totalIncome => _transactions
-      .where((t) => t.isIncome)
-      .fold(0, (sum, t) => sum + t.amount);
+  double get totalIncome => _transactions.where((t) => t.isIncome).fold(0, (sum, t) => sum + t.amount);
+  double get totalSpending => _transactions.where((t) => !t.isIncome).fold(0, (sum, t) => sum + t.amount);
 
-  // Menghitung total pengeluaran
-  double get totalSpending => _transactions
-      .where((t) => !t.isIncome)
-      .fold(0, (sum, t) => sum + t.amount);
+  // --- FUNGSI LOAD DATA (Dipanggil saat awal) ---
+  Future<void> loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Load Saldo
+    _balance = prefs.getDouble('user_balance') ?? 0;
 
-  // --- METHODS ---
+    // 2. Load Transaksi
+    String? transactionsString = prefs.getString('user_transactions');
+    if (transactionsString != null) {
+      List<dynamic> decodedList = json.decode(transactionsString);
+      _transactions = decodedList.map((item) {
+        return Transaction(
+          title: item['title'],
+          amount: (item['amount'] as num).toDouble(),
+          isIncome: item['isIncome'],
+          date: DateTime.parse(item['date']),
+        );
+      }).toList();
+    } else {
+      // Data Dummy jika pertama kali install
+      _transactions = [
+        Transaction(title: 'Gaji Bulanan', amount: 19000000, isIncome: true, date: DateTime.now().subtract(const Duration(days: 2))),
+        Transaction(title: 'Beli Motor', amount: 19000000, isIncome: false, date: DateTime.now().subtract(const Duration(days: 1))),
+      ];
+      _balance = 1000000; // Saldo awal dummy
+      await _saveData(); // Simpan dummy data
+    }
 
-  /// Menambahkan transaksi baru
-  /// Parameter: title, amount, isIncome, date
-  void addTransaction({
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // --- FUNGSI SIMPAN DATA (Internal) ---
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('user_balance', _balance);
+    
+    List<Map<String, dynamic>> transactionsMap = _transactions.map((t) => {
+      'title': t.title,
+      'amount': t.amount,
+      'isIncome': t.isIncome,
+      'date': t.date.toIso8601String(),
+    }).toList();
+    
+    await prefs.setString('user_transactions', json.encode(transactionsMap));
+  }
+
+  // --- FUNGSI TAMBAH TRANSAKSI ---
+  Future<void> addTransaction({
     required String title,
     required double amount,
     required bool isIncome,
     required DateTime date,
-  }) {
-    // Buat objek transaksi baru
-    final newTransaction = Transaction(
-      title: title,
-      amount: amount,
-      isIncome: isIncome,
-      date: date,
-    );
-
-    // Masukkan ke paling atas list (index 0)
+  }) async {
+    final newTransaction = Transaction(title: title, amount: amount, isIncome: isIncome, date: date);
     _transactions.insert(0, newTransaction);
 
-    // Update saldo
     if (isIncome) {
       _balance += amount;
     } else {
       _balance -= amount;
     }
 
-    // Beritahu UI untuk refresh
+    await _saveData(); // Simpan ke lokal
     notifyListeners();
   }
 
-  /// Menghapus transaksi berdasarkan index
-  /// Digunakan oleh tombol "X" dan fitur Swipe-to-Delete
-  void deleteTransaction(int index) {
+  // --- FUNGSI HAPUS TRANSAKSI ---
+  Future<void> deleteTransaction(int index) async {
     if (index >= 0 && index < _transactions.length) {
-      final removedTransaction = _transactions[index];
-
-      // Hapus dari list
+      final removed = _transactions[index];
       _transactions.removeAt(index);
 
-      // Kembalikan saldo (reverse logic)
-      if (removedTransaction.isIncome) {
-        // Jika yang dihapus adalah pemasukan, maka saldo berkurang
-        _balance -= removedTransaction.amount;
+      // Reverse saldo
+      if (removed.isIncome) {
+        _balance -= removed.amount;
       } else {
-        // Jika yang dihapus adalah pengeluaran, maka saldo bertambah (kembali)
-        _balance += removedTransaction.amount;
+        _balance += removed.amount;
       }
 
-      // Beritahu UI untuk refresh
+      await _saveData(); // Update lokal (data terhapus permanen)
       notifyListeners();
     }
-  }
-
-  /// (Opsional) Membersihkan semua transaksi
-  void clearAllTransactions() {
-    _transactions.clear();
-    _balance = 0;
-    notifyListeners();
   }
 }
