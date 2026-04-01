@@ -21,7 +21,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
-  # BAGIAN INI WAJIB ADA DAN INDENTASINYA BENAR (2 spasi)
-  assets:
-    - assets/frame_1.png

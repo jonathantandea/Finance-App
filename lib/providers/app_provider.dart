@@ -4,11 +4,10 @@ import 'dart:convert';
 import '../models/transaction.dart';
 
 class AppProvider extends ChangeNotifier {
-  double _balance = 0;
+  double _balance = 0; // Mulai dari 0, jangan di-hardcode 1 juta
   List<Transaction> _transactions = [];
   bool _isLoading = true;
 
-  // Getters
   double get balance => _balance;
   List<Transaction> get transactions => _transactions;
   bool get isLoading => _isLoading;
@@ -16,7 +15,6 @@ class AppProvider extends ChangeNotifier {
   double get totalIncome => _transactions.where((t) => t.isIncome).fold(0, (sum, t) => sum + t.amount);
   double get totalSpending => _transactions.where((t) => !t.isIncome).fold(0, (sum, t) => sum + t.amount);
 
-  // --- FUNGSI LOAD DATA (Dipanggil saat awal) ---
   Future<void> loadData() async {
     final prefs = await SharedPreferences.getInstance();
     
@@ -36,20 +34,19 @@ class AppProvider extends ChangeNotifier {
         );
       }).toList();
     } else {
-      // Data Dummy jika pertama kali install
+      // HANYA JIKA BENAR-BENAR KOSONG PERTAMA KALI, buat data dummy
+      // Setelah user hapus semua, ini tidak akan muncul lagi karena key 'user_transactions' sudah pernah dibuat
       _transactions = [
-        Transaction(title: 'Gaji Bulanan', amount: 19000000, isIncome: true, date: DateTime.now().subtract(const Duration(days: 2))),
-        Transaction(title: 'Beli Motor', amount: 19000000, isIncome: false, date: DateTime.now().subtract(const Duration(days: 1))),
+        Transaction(title: 'Selamat Datang!', amount: 1000000, isIncome: true, date: DateTime.now()),
       ];
-      _balance = 1000000; // Saldo awal dummy
-      await _saveData(); // Simpan dummy data
+      _balance = 1000000;
+      await _saveData(); // Langsung simpan data dummy ini agar next load tidak masuk sini lagi
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // --- FUNGSI SIMPAN DATA (Internal) ---
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('user_balance', _balance);
@@ -64,40 +61,24 @@ class AppProvider extends ChangeNotifier {
     await prefs.setString('user_transactions', json.encode(transactionsMap));
   }
 
-  // --- FUNGSI TAMBAH TRANSAKSI ---
-  Future<void> addTransaction({
-    required String title,
-    required double amount,
-    required bool isIncome,
-    required DateTime date,
-  }) async {
+  Future<void> addTransaction({required String title, required double amount, required bool isIncome, required DateTime date}) async {
     final newTransaction = Transaction(title: title, amount: amount, isIncome: isIncome, date: date);
     _transactions.insert(0, newTransaction);
 
-    if (isIncome) {
-      _balance += amount;
-    } else {
-      _balance -= amount;
-    }
+    if (isIncome) _balance += amount; else _balance -= amount;
 
-    await _saveData(); // Simpan ke lokal
+    await _saveData();
     notifyListeners();
   }
 
-  // --- FUNGSI HAPUS TRANSAKSI ---
   Future<void> deleteTransaction(int index) async {
     if (index >= 0 && index < _transactions.length) {
       final removed = _transactions[index];
       _transactions.removeAt(index);
 
-      // Reverse saldo
-      if (removed.isIncome) {
-        _balance -= removed.amount;
-      } else {
-        _balance += removed.amount;
-      }
+      if (removed.isIncome) _balance -= removed.amount; else _balance += removed.amount;
 
-      await _saveData(); // Update lokal (data terhapus permanen)
+      await _saveData();
       notifyListeners();
     }
   }
